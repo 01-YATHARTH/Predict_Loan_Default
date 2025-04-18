@@ -1,77 +1,85 @@
-# Predict_Loan_Default
-This project focuses on predicting loan defaults using a classification model trained on financial history and credit score data. It includes evaluation using confusion matrix heatmaps, accuracy, precision, and recall. Additionally, it applies clustering techniques (KMeans + PCA) for customer segmentation and exploratory insights.
+# Import required libraries
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-# Loan Default Prediction and Segmentation
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 
-This project focuses on building a classification model to predict whether a borrower will default on a loan using historical financial and credit score data. In addition to classification, it also applies clustering techniques to uncover hidden patterns in the dataset through customer segmentation.
+from google.colab import files
+uploaded = files.upload()
 
-## 📌 Project Highlights
+# Load dataset
+file_name = next(iter(uploaded))
+df = pd.read_csv(file_name)
 
-- Classification using Random Forest to predict loan defaults
-- Evaluation using:
-  - Accuracy
-  - Precision
-  - Recall
-  - Confusion Matrix Heatmap
-- Clustering with KMeans for segmentation
-- Dimensionality reduction using PCA for visualization
+# Optional: Reduce data for faster testing (remove if not needed)
+# df = df.sample(frac=0.3, random_state=42)
 
----
+# Drop missing values
+df = df.dropna()
 
-## 🔧 Technologies Used
+# Identify target column (assume last column or named 'Default')
+target_col = 'Default' if 'Default' in df.columns else df.columns[-1]
 
-- Python
-- Pandas, NumPy
-- Scikit-learn
-- Seaborn, Matplotlib
-- Google Colab (for execution)
+# Encode categorical columns
+for col in df.select_dtypes(include='object').columns:
+    if col != target_col:
+        df[col] = LabelEncoder().fit_transform(df[col])
 
----
+# Encode target column if needed
+y = df[target_col]
+if y.dtype == 'object':
+    y = LabelEncoder().fit_transform(y)
 
-## 📁 Dataset
+# Features and scaling
+X = df.drop(columns=[target_col])
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-You’ll need a dataset in CSV format with features like:
-- Financial history
-- Credit score
-- User behavior
-- A target column like `Default` or similar (1 = default, 0 = no default)
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
 
-Upload the dataset manually when prompted in the Colab notebook.
+# Train classifier
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
 
----
+# Confusion matrix and heatmap
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(6, 4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.title('Confusion Matrix Heatmap')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.show()
 
-## 🚀 How to Run
+# Metrics
+acc = accuracy_score(y_test, y_pred)
+prec = precision_score(y_test, y_pred, zero_division=0)
+rec = recall_score(y_test, y_pred, zero_division=0)
 
-1. Open the project in **Google Colab**
-2. Upload your dataset when prompted
-3. Run the code cells one by one
+print("Evaluation Metrics:")
+print(f"Accuracy : {acc:.4f}")
+print(f"Precision: {prec:.4f}")
+print(f"Recall   : {rec:.4f}")
 
-The notebook will:
-- Clean and preprocess your data
-- Train a Random Forest classifier
-- Generate a heatmap of the confusion matrix
-- Print evaluation metrics
-- Perform clustering using KMeans
-- Visualize clusters in a 2D PCA plot
+# Clustering (unsupervised segmentation)
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_scaled)
 
----
+kmeans = KMeans(n_clusters=2, random_state=42, n_init=10)
+clusters = kmeans.fit_predict(X_scaled)
 
-## 📊 Output Examples
-
-- Confusion Matrix Heatmap
-- Accuracy, Precision, Recall scores
-- KMeans Cluster Visualization using PCA
-
----
-
-## 💡 Notes
-
-- You can adjust the model or number of clusters based on your dataset
-- PCA is used for visualization only, not for training the classifier
-
----
-
-## 📬 Contact
-
-If you have any questions or suggestions, feel free to open an issue or fork the repository.
-
+# Plot clusters
+plt.figure(figsize=(6, 4))
+sns.scatterplot(x=X_pca[:, 0], y=X_pca[:, 1], hue=clusters, palette='Set2')
+plt.title('KMeans Clustering on PCA-Reduced Loan Data')
+plt.xlabel('PCA Component 1')
+plt.ylabel('PCA Component 2')
+plt.show()
